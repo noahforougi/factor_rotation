@@ -1,0 +1,6 @@
+data/
+notebooks/
+.env
+factor_rotation_env/
+src/data/
+src/notebooks/
