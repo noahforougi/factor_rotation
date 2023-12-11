@@ -28,7 +28,7 @@ def business_cycle():
     """
     try:
         df = pd.read_csv(config.OUTPUT_DIR + "/macro_indicators.csv")
-        core.calculate_business_cycle_indicator(df).to_csv(
+        core.calculate(df).to_csv(
             config.OUTPUT_DIR + "/business_cycle_indicator.csv"
         )
         typer.echo("Business Cycle Indicator analysis completed and saved")
