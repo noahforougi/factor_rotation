@@ -1,23 +1,26 @@
 import typer
-from macro import core, config
-from typing import Optional
+from ingress import core as data_core, config as data_config
+from trade import core as trade_core
 import pandas as pd
 
 app = typer.Typer()
 
 
 @app.command()
-def fetch(indicator: Optional[str] = None):
+def fetch(macro: bool = False, 
+          trade: bool = False):
     """
     Fetch data for all indicators or a specific indicator.
     """
-    if indicator:
-        data = core.fetch_all_data(indicators=[indicator])
-    else:
-        data = core.fetch_all_data()
-
-    data.to_csv(config.OUTPUT_DIR + "/macro_indicators.csv")
-    typer.echo("Fetched macro data and saved")
+    if macro:
+        data = data_core.fetch_all_data()
+        data.to_csv(data_config.OUTPUT_DIR + "/macro_indicators.csv")
+        typer.echo("Fetched macro data and saved")
+    if trade:
+        data = data_core.compile_etf_data()
+        data.to_csv(data_config.OUTPUT_DIR + "/etf_data.csv")
+        typer.echo("Fetched etf data and saved")
+        
 
 
 
@@ -27,9 +30,9 @@ def business_cycle():
     Run analytics on the fetched macroeconomic indicators.
     """
     try:
-        df = pd.read_csv(config.OUTPUT_DIR + "/macro_indicators.csv")
-        core.calculate(df).to_csv(
-            config.OUTPUT_DIR + "/business_cycle_indicator.csv"
+        df = pd.read_csv(data_config.OUTPUT_DIR + "/macro_indicators.csv")
+        trade_core.calculate(df).to_csv(
+            data_config.OUTPUT_DIR + "/business_cycle_indicator.csv"
         )
         typer.echo("Business Cycle Indicator analysis completed and saved")
     except Exception as e:

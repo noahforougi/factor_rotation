@@ -1,51 +1,9 @@
-from fredapi import Fred
+
 import pandas as pd
-from macro import config
-import pandas as pd
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
-import matplotlib.pyplot as plt
-import pandas as pd
-from scipy.signal import find_peaks
 import numpy as np
-fred = Fred(api_key=config.API_KEY)
-
-
-def fetch_data(series_id):
-    """Get series for FRED.
-    
-    Args: 
-        series_id: a str indicating the series from FRED to download
-
-    """
-    data = fred.get_series(series_id)
-    return data
-
-
-def fetch_all_data() -> pd.DataFrame:
-    """Get all relevant series for business cycle indicator.
-    
-    Args: 
-        None
-    
-    Return: a pd.DataFrame
-    """
-    long_data = []
-    for name, series_id in config.INDICATORS.items():
-        series_data = fred.get_series(series_id)
-        if series_data is not None:
-            # Create a DataFrame for each series and reset the index
-            df = pd.DataFrame(series_data, columns=["value"])
-            df["indicator"] = name
-            df.reset_index(inplace=True)
-            df.rename(columns={"index": "date"}, inplace=True)
-            long_data.append(df)
-
-    # Concatenate all dataframes
-    long_df = pd.concat(long_data)
-
-    return long_df
-
+from scipy.signal import find_peaks
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 
 def construct_cycle_indicator(df: pd.DataFrame) -> pd.DataFrame:
     """Format data to wide format and interpolate missing values.
