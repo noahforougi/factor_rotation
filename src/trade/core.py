@@ -4,6 +4,7 @@ import numpy as np
 from scipy.signal import find_peaks
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
+from trade import config
 
 def construct_cycle_indicator(df: pd.DataFrame) -> pd.DataFrame:
     """Format data to wide format and interpolate missing values.
@@ -57,7 +58,98 @@ def cycle_classifier(df: pd.DataFrame):
 
     return X
 
-def calculate(df: pd.DataFrame): 
+def calculate_cycle(df: pd.DataFrame): 
     X = construct_cycle_indicator(df)
     X = cycle_classifier(X) 
     return X
+
+
+def convert_to_monthly_returns(df):
+    """
+    Convert daily asset prices to monthly returns.
+    
+    Args:
+        df (pd.DataFrame): DataFrame with daily asset prices and a 'Date' column.
+    
+    Returns:
+        pd.DataFrame: DataFrame with monthly returns.
+    """
+    monthly_returns = (
+        df.assign(date=lambda x: pd.to_datetime(x.Date.str.slice(0, 10)))
+        .set_index("date")
+        .resample("M")
+        .last()
+        .drop(columns=["Date"])
+        .pct_change()
+        .dropna()
+        .reset_index()
+        .assign(date=lambda x: pd.to_datetime(x.date.dt.strftime("%Y-%m-01")))
+    )
+    return monthly_returns
+
+def apply_cycle_weights(df, cycle_weights):
+    """
+    Apply weights to the assets based on the business cycle phase.
+    
+    Args:
+        df (pd.DataFrame): DataFrame with asset returns and 'Cycle_Phase' column.
+        cycle_weights (dict): Dictionary with weights for each asset in different cycle phases.
+    
+    Returns:
+        pd.DataFrame: DataFrame with weighted returns.
+    """
+    # Initialize a DataFrame to store weighted returns
+    weighted_returns = pd.DataFrame(index=df.index)
+
+    # Iterate over the DataFrame and apply the correct weights based on the cycle phase
+    for index, row in df.iterrows():
+        phase = row['Cycle_Phase']
+        weights = cycle_weights[phase]
+        for asset in weights.keys():
+            weighted_returns.loc[index, asset] = row[asset] * weights[asset]
+
+    return weighted_returns
+
+
+def calculate_portfolio_returns(asset_returns, cycle_weights, equal_weights):
+    """
+    Calculate and compare the portfolio returns for cycle-based and equal-weight strategies.
+    
+    Args:
+        asset_returns (pd.DataFrame): DataFrame with asset returns.
+        cycle_weights (dict): Dictionary with weights for expansion and contraction phases.
+        equal_weights (dict): Dictionary with equal weights for each asset.
+    
+    Returns:
+        pd.DataFrame: DataFrame comparing the two strategies.
+    """
+    # Apply cycle weights
+    weighted_returns = apply_cycle_weights(asset_returns, cycle_weights)
+    weighted_returns['Strategy_Portfolio_Returns'] = weighted_returns.sum(axis=1)
+
+    # Calculate equal weight portfolio returns
+    equal_weighted_returns = asset_returns[list(equal_weights.keys())] * pd.Series(equal_weights)
+    equal_weighted_returns['Equal_Weight_Portfolio_Returns'] = equal_weighted_returns.sum(axis=1)
+
+    # Comparing the two strategies
+    comparison = pd.DataFrame({
+        'Date': asset_returns['date'],
+        'Strategy_Returns': weighted_returns['Strategy_Portfolio_Returns'],
+        'Equal_Weight_Returns': equal_weighted_returns['Equal_Weight_Portfolio_Returns']
+    })
+
+    return comparison
+
+def create_strategy(factor_prices: pd.DataFrame, bci: pd.DataFrame) -> pd.DataFrame: 
+    
+    # Calculate factor returns
+    monthly_factor_returns = convert_to_monthly_returns(factor_prices)
+
+    # Link business cycle with asset returns
+    X = bci.assign(date=lambda x: pd.to_datetime(x.date)).merge(monthly_factor_returns, on="date", how="inner")
+
+    
+    # Calculate and compare the returns 
+    comparison = calculate_portfolio_returns(X, config.WEIGHTS, config.EQUAL_WEIGHTS)
+
+    return comparison
