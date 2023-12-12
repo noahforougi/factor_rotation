@@ -14,12 +14,12 @@ def fetch(macro: bool = False,
     """
     if macro:
         data = data_core.fetch_all_data()
-        data.to_csv(data_config.OUTPUT_DIR + "/macro_indicators.csv")
-        typer.echo("Fetched macro data and saved")
+        data_core.save_df_to_s3(data, "macro_indicators.csv")
+        typer.echo("Fetched macro data and saved to S3")
     if trade:
         data = data_core.compile_etf_data()
-        data.to_csv(data_config.OUTPUT_DIR + "/etf_data.csv")
-        typer.echo("Fetched etf data and saved")
+        data_core.save_df_to_s3(data, "etf_data.csv")
+        typer.echo("Fetched etf data and saved to S3")
         
 
 
@@ -30,11 +30,9 @@ def business_cycle():
     Run analytics on the fetched macroeconomic indicators.
     """
     try:
-        df = pd.read_csv(data_config.OUTPUT_DIR + "/macro_indicators.csv")
-        trade_core.calculate(df).to_csv(
-            data_config.OUTPUT_DIR + "/business_cycle_indicator.csv"
-        )
-        typer.echo("Business Cycle Indicator analysis completed and saved")
+        df = data_core.read_csv_from_s3("macro_indicators.csv")
+        data_core.save_df_to_s3(trade_core.calculate_cycle(df), "business_cycle_indicator.csv")
+        typer.echo("Business Cycle Indicator analysis completed and saved to s3")
     except Exception as e:
         typer.echo(f"An error occurred: {e}")
 
